@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ms" dir="rtl" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ڤڠاجرن سورة الفاتحة - ميسي ايجين الفاتحة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        agent: {
+                            dark: '#030712',
+                            card: '#0b1329',
+                            neonBlue: '#00f2fe',
+                            neonRed: '#ff3366',
+                            neonYellow: '#ffcc00',
+                            neonGreen: '#10b981',
+                            hudBorder: '#1e3a8a'
+                        }
+                    },
+                    fontFamily: {
+                        jawi: ['Amiri', 'Traditional Arabic', 'Scheherazade New', 'serif'],
+                        mono: ['Courier New', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts for Amiri & Noto Naskh Arabic for seamless Jawi support -->
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <style>
+        body {
+            font-family: 'Noto Naskh Arabic', 'Amiri', serif;
+            direction: rtl;
+            text-align: right;
+        }
+        .scanlines {
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.3) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.03)
+            );
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        .neon-glow-blue {
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.6), inset 0 0 12px rgba(0, 242, 254, 0.3);
+        }
+        .neon-glow-red {
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.7), inset 0 0 12px rgba(255, 51, 102, 0.3);
+        }
+        .neon-glow-yellow {
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.7), inset 0 0 12px rgba(255, 204, 0, 0.3);
+        }
+        .hud-border {
+            border: 2px solid rgba(0, 242, 254, 0.5);
+            position: relative;
+        }
+        .hud-border::before {
+            content: '';
+            position: absolute;
+            top: -4px; right: -4px;
+            width: 14px; height: 14px;
+            border-top: 3px solid #00f2fe;
+            border-right: 3px solid #00f2fe;
+        }
+        .hud-border::after {
+            content: '';
+            position: absolute;
+            bottom: -4px; left: -4px;
+            width: 14px; height: 14px;
+            border-bottom: 3px solid #00f2fe;
+            border-left: 3px solid #00f2fe;
+        }
+        @keyframes radarSweep {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .radar-sweep {
+            animation: radarSweep 5s linear infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+        .pulse-active {
+            animation: pulseGlow 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-agent-dark text-white h-full overflow-x-hidden select-none relative">
+    <div class="absolute inset-0 scanlines z-50 fixed"></div>
+
+    <div id="app" class="min-h-screen flex flex-col justify-between relative z-10 p-3 md:p-6 max-w-7xl mx-auto">
+        
+        <!-- HEADER / TOP HUD -->
+        <header class="flex flex-wrap justify-between items-center bg-agent-card/90 backdrop-blur-md p-4 rounded-2xl hud-border mb-4 shadow-2xl">
+            <div class="flex items-center space-x-reverse space-x-3">
+                <div class="w-12 h-12 rounded-xl bg-cyan-500/20 border-2 border-cyan-400 flex items-center justify-center text-cyan-300 text-2xl shadow-lg">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black text-cyan-300 tracking-wide font-jawi">ميسي ايجين الفاتحة</h1>
+                    <p class="text-xs text-cyan-400/80 font-mono tracking-widest">سیستم M.A.T.A • ڤنديديقن اسلام تاهون 3</p>
+                </div>
+            </div>
+
+            <!-- Agent Status & Scoreboard (All Jawi) -->
+            <div id="hud-stats" class="hidden flex items-center space-x-reverse space-x-3 md:space-x-6 my-2 md:my-0">
+                <div class="bg-cyan-950/80 border border-cyan-500/50 px-3 py-1.5 rounded-xl text-center min-w-[90px]">
+                    <span class="text-[11px] block text-cyan-300 font-jawi">ڤوسيڠن</span>
+                    <span id="round-counter" class="text-base font-black text-white font-mono">1 / 8</span>
+                </div>
+                <div class="bg-cyan-950/80 border border-cyan-500/50 px-3 py-1.5 rounded-xl text-center min-w-[90px]">
+                    <span class="text-[11px] block text-cyan-300 font-jawi">مركه</span>
+                    <span id="score-counter" class="text-base font-black text-yellow-300 font-mono">0</span>
+                </div>
+                <div class="bg-cyan-950/80 border border-cyan-500/50 px-3 py-1.5 rounded-xl text-center">
+                    <span class="text-[11px] block text-cyan-300 font-jawi">ستاتوس تاڠن</span>
+                    <span id="hand-status" class="text-xs font-bold text-red-400 font-jawi">بلوم اكتيف</span>
+                </div>
+            </div>
+
+            <!-- Control Actions -->
+            <div class="flex items-center space-x-reverse space-x-2">
+                <button id="audio-toggle-btn" onclick="toggleAudio()" title="بونڽي" class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-600 hover:border-cyan-400 text-cyan-300 flex items-center justify-center transition">
+                    <i id="audio-icon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <button id="cam-toggle-btn" onclick="toggleCameraMode()" title="مود كاولن" class="px-3 py-2 rounded-xl bg-cyan-950 border border-cyan-500/60 hover:bg-cyan-900 text-cyan-300 text-xs font-bold transition flex items-center space-x-reverse space-x-2 font-jawi">
+                    <i class="fa-solid fa-hand"></i>
+                    <span id="cam-mode-text">مود كاميرا: اكتيف</span>
+                </button>
+            </div>
+        </header>
+
+        <div id="screen-welcome" class="flex-1 flex flex-col items-center justify-center text-center p-4 my-auto">
+            <div class="relative mb-6">
+                <div class="absolute -inset-4 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 opacity-30 blur-2xl radar-sweep"></div>
+                <div class="w-32 h-32 md:w-40 md:h-40 rounded-full bg-agent-card border-2 border-cyan-400 flex items-center justify-center relative z-10 neon-glow-blue mx-auto">
+                    <i class="fa-solid fa-brain text-6xl text-cyan-300"></i>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <span class="bg-cyan-500/10 border border-cyan-500/40 text-cyan-300 text-xs md:text-sm px-4 py-1.5 rounded-full font-jawi">ڤنديديقن اسلام • كفهمان القرءان • تاهون 3</span>
+            </div>
+            
+            <h2 class="text-3xl md:text-5xl font-black text-white mb-2 font-jawi tracking-wide">ميسي ايجين الفاتحة</h2>
+            <h3 class="text-xl md:text-2xl font-bold text-cyan-400 font-jawi mb-6">ڤڠاجرن سورة الفاتحة</h3>
+            
+            <p class="max-w-2xl text-cyan-100/90 text-sm md:text-base mb-8 leading-relaxed font-jawi">
+                سلامت داتڠ كاكاديمي M.A.T.A! بنتو ايجين مڽوسون أمالن هارين كدالم <b>زون ڤوجين</b>، <b>زون اقرار</b>، دان <b>زون دعاء</b> بردارسكن سورة الفاتحة. ݢوناكن ݢرقن تاڠن دحادڤن كاميرا اءاتو تيتيكوس!
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center">
+                <button onclick="startMission(true)" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black py-4 px-8 rounded-2xl shadow-xl neon-glow-blue transform hover:-translate-y-0.5 transition flex items-center justify-center space-x-reverse space-x-3 text-base font-jawi">
+                    <i class="fa-solid fa-video text-xl"></i>
+                    <span>مولا ميسي (كاميرا)</span>
+                </button>
+                <button onclick="startMission(false)" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-cyan-300 font-bold py-4 px-6 rounded-2xl transition flex items-center justify-center space-x-reverse space-x-2 text-sm font-jawi">
+                    <i class="fa-solid fa-computer-mouse"></i>
+                    <span>مود تيتيكوس سهاج</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="screen-game" class="hidden flex-1 flex flex-col">
+            
+            <!-- MISSION GUIDANCE BANNER -->
+            <div id="mission-instruction-banner" class="bg-cyan-950/90 border border-cyan-500/50 p-3 rounded-xl mb-4 flex items-center justify-between text-xs md:text-sm text-cyan-200">
+                <div class="flex items-center space-x-reverse space-x-3">
+                    <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                        <i class="fa-solid fa-bullseye animate-pulse"></i>
+                    </div>
+                    <div>
+                        <span id="instruction-text" class="font-bold font-jawi">اراهن: هالقن جاري تلونجوق كقاد ڤيليهن، ككال 1 ساءت اونتوق ڤيليه!</span>
+                    </div>
+                </div>
+                <div class="hidden md:block font-jawi text-cyan-400 text-xs">
+                    زون 1: ڤوجين (مراه) | زون 2: اقرار (بيرو) | زون 3: دعاء (كونيڠ)
+                </div>
+            </div>
+
+            <!-- MAIN WORKSPACE GRID -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
+                
+                <!-- CAMERA & GESTURE HUD (4 Cols) -->
+                <div class="lg:col-span-4 flex flex-col bg-agent-card/80 hud-border rounded-2xl p-3 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold font-jawi text-cyan-400 flex items-center space-x-reverse space-x-1.5">
+                            <i class="fa-solid fa-video"></i>
+                            <span>كاميرا دان سينسور تاڠن</span>
+                        </span>
+                        <span id="dwell-timer-badge" class="hidden bg-cyan-400 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full animate-bounce font-jawi">
+                            ممليه...
+                        </span>
+                    </div>
+
+                    <!-- Video Container with Overlay Canvas -->
+                    <div class="relative w-full aspect-video md:aspect-[4/3] bg-black rounded-xl overflow-hidden border border-cyan-500/40 flex items-center justify-center">
+                        <video id="webcam" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" autoplay playsinline muted></video>
+                        <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 pointer-events-none"></canvas>
+                        
+                        <!-- Camera Placeholder when inactive -->
+                        <div id="cam-placeholder" class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-4 text-center">
+                            <i class="fa-solid fa-video-slash text-4xl text-cyan-500/60 mb-2"></i>
+                            <p class="text-xs text-cyan-300 font-jawi">مود تيتيكوس اكتيف / كاميرا ديماتيكن</p>
+                        </div>
+
+                        <!-- Virtual Cursor Marker -->
+                        <div id="virtual-cursor" class="absolute w-7 h-7 rounded-full border-2 border-cyan-400 bg-cyan-400/40 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 transition-all duration-75 flex items-center justify-center hidden">
+                            <div class="w-2.5 h-2.5 bg-white rounded-full shadow-glow"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 bg-slate-900/90 p-3 rounded-xl border border-slate-700 text-xs text-cyan-100 flex-1 flex flex-col justify-between">
+                        <div>
+                            <p class="font-bold text-cyan-300 mb-1 flex items-center font-jawi">
+                                <i class="fa-solid fa-circle-info ml-1.5 text-cyan-400"></i>ڤاندوان ݢرقن:
+                            </p>
+                            <p id="gesture-guide-desc" class="text-[12px] text-slate-300 leading-relaxed font-jawi">
+                                1. اڠكت جاري تلونجوق دحادڤن كاميرا.<br>
+                                2. تاهن داءاتس قد (1 ساءت) اونتوق ڤيليه.<br>
+                                3. ݢرقكن كزون ساسارن دان تاهن 1 ساءت.
+                            </p>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-cyan-400 font-jawi">
+                            <span id="active-selection-status">ڤيليهن: تياد</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARDS & TARGET ZONES (8 Cols) -->
+                <div class="lg:col-span-8 flex flex-col justify-between space-y-4">
+                    
+                    <!-- SITUATION QUESTION CARD -->
+                    <div id="question-card-container" class="bg-gradient-to-r from-slate-900 via-cyan-950/50 to-slate-900 border border-cyan-500/40 rounded-2xl p-4 md:p-6 shadow-xl relative">
+                        <div class="absolute top-3 left-3">
+                            <span id="round-badge" class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-3 py-1 rounded-xl text-xs font-bold font-jawi">سيستواسي ڤوسيڠن</span>
+                        </div>
+                        <span class="text-xs text-cyan-400 font-jawi block mb-1">ڤيليه 2 قد أمالن بتول دان ماسوقكن كزون يڠ تڤت</span>
+                        <h3 id="question-prompt" class="text-base md:text-xl font-bold text-white mb-4 pl-16 leading-snug font-jawi">
+                            ممواتكن سيستواسي...
+                        </h3>
+
+                        <!-- CARDS SELECTION TRAY -->
+                        <div id="cards-tray" class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                            <!-- Dynamically injected cards -->
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 flex-1">
+                        
+                        <!-- ZON 1: PUJIAN (RED) -->
+                        <div id="zone-1" onclick="handleZoneClick(1)" class="zone-box bg-slate-900/90 border-2 border-red-500/70 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:border-red-400 hover:neon-glow-red cursor-pointer relative group">
+                            <div class="absolute top-3 left-3 w-3 h-3 rounded-full bg-red-500 animate-ping"></div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-black px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/40 rounded-md font-jawi">زون 1</span>
+                                    <span class="text-2xl font-bold font-jawi text-red-300">ڤوجين</span>
+                                </div>
+                                <h4 class="text-sm font-bold text-white font-jawi">ڤوجين (PUJIAN)</h4>
+                                <p class="text-xs text-slate-300 mt-1 font-jawi">أية 1 - 4 • شوكور دان ڤوجين كڤد الله SWT</p>
+                            </div>
+                            <div class="mt-4 pt-2 border-t border-red-500/20 flex items-center justify-between text-xs text-red-400 font-jawi">
+                                <span>جاري تلونجوق / كليك</span>
+                                <i class="fa-solid fa-arrow-left-long"></i>
+                            </div>
+                        </div>
+
+                        <!-- ZON 2: IKRAR (BLUE) -->
+                        <div id="zone-2" onclick="handleZoneClick(2)" class="zone-box bg-slate-900/90 border-2 border-blue-500/70 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:border-blue-400 hover:neon-glow-blue cursor-pointer relative group">
+                            <div class="absolute top-3 left-3 w-3 h-3 rounded-full bg-blue-500 animate-ping"></div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-black px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/40 rounded-md font-jawi">زون 2</span>
+                                    <span class="text-2xl font-bold font-jawi text-blue-300">اقرار</span>
+                                </div>
+                                <h4 class="text-sm font-bold text-white font-jawi">اقرار (IKRAR)</h4>
+                                <p class="text-xs text-slate-300 mt-1 font-jawi">أية 5 • عبادة دان موهون ڤرتولوڠن الله</p>
+                            </div>
+                            <div class="mt-4 pt-2 border-t border-blue-500/20 flex items-center justify-between text-xs text-blue-400 font-jawi">
+                                <span>جاري تلونجوق / كليك</span>
+                                <i class="fa-solid fa-arrow-left-long"></i>
+                            </div>
+                        </div>
+
+                        <!-- ZON 3: DOA (YELLOW) -->
+                        <div id="zone-3" onclick="handleZoneClick(3)" class="zone-box bg-slate-900/90 border-2 border-yellow-500/70 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:border-yellow-400 hover:neon-glow-yellow cursor-pointer relative group">
+                            <div class="absolute top-3 left-3 w-3 h-3 rounded-full bg-yellow-500 animate-ping"></div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-black px-2 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 rounded-md font-jawi">زون 3</span>
+                                    <span class="text-2xl font-bold font-jawi text-yellow-300">دعاء</span>
+                                </div>
+                                <h4 class="text-sm font-bold text-white font-jawi">دعاء (DOA)</h4>
+                                <p class="text-xs text-slate-300 mt-1 font-jawi">أية 6 - 7 • ڤتونجوق دان جالن يڠ لوروس</p>
+                            </div>
+                            <div class="mt-4 pt-2 border-t border-yellow-500/20 flex items-center justify-between text-xs text-yellow-400 font-jawi">
+                                <span>جاري تلونجوق / كليك</span>
+                                <i class="fa-solid fa-arrow-left-long"></i>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div id="screen-complete" class="hidden flex-1 flex flex-col items-center justify-center text-center p-4 my-auto">
+            <div class="w-28 h-28 rounded-full bg-cyan-500/20 border-2 border-cyan-400 flex items-center justify-center mb-6 neon-glow-blue mx-auto animate-bounce">
+                <i class="fa-solid fa-award text-6xl text-cyan-300"></i>
+            </div>
+            
+            <h2 class="text-3xl md:text-5xl font-black text-white mb-2 font-jawi">تهنيئة، ايجين الفاتحة!</h2>
+            <h3 class="text-xl md:text-2xl font-bold text-cyan-400 font-jawi mb-6">ڤڠاجرن سورة الفاتحة تله دڤهامي</h3>
+
+            <div class="bg-agent-card border border-cyan-500/40 rounded-2xl p-6 max-w-lg w-full mb-8 shadow-2xl text-right">
+                <div class="flex justify-between items-center mb-4 pb-3 border-b border-cyan-500/20 font-jawi">
+                    <span class="text-base text-cyan-300 font-bold">جومله مركه ميسي:</span>
+                    <span id="final-score" class="text-3xl font-black text-yellow-300 font-mono">0 / 16</span>
+                </div>
+                <div class="space-y-3 text-xs md:text-sm font-jawi">
+                    <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-red-500/30">
+                        <span class="font-bold text-red-400 flex items-center"><i class="fa-solid fa-star ml-2"></i> زون 1: ڤوجين</span>
+                        <span class="text-slate-300">(أية 1 - 4)</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-blue-500/30">
+                        <span class="font-bold text-blue-400 flex items-center"><i class="fa-solid fa-hands-praying ml-2"></i> زون 2: اقرار</span>
+                        <span class="text-slate-300">(أية 5)</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-yellow-500/30">
+                        <span class="font-bold text-yellow-400 flex items-center"><i class="fa-solid fa-compass ml-2"></i> زون 3: دعاء</span>
+                        <span class="text-slate-300">(أية 6 - 7)</span>
+                    </div>
+                </div>
+                <p class="mt-5 text-sm text-cyan-200/90 text-center leading-relaxed font-jawi italic">
+                    "تروسكن مڠعملكن ڤڠاجرن سورة الفاتحة دالم كهدوڤن هارين سباݢاي ايجين M.A.T.A يڠ صالح دان براخلاق ملیا!"
+                </p>
+            </div>
+
+            <button onclick="restartGame()" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black py-4 px-10 rounded-2xl shadow-xl neon-glow-blue transition text-lg font-jawi">
+                <i class="fa-solid fa-rotate-right ml-2"></i> اولڠ ميسي
+            </button>
+        </div>
+
+        <div id="custom-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-agent-card border-2 border-cyan-400 rounded-2xl p-6 max-w-md w-full shadow-2xl text-center neon-glow-blue">
+                <div id="modal-icon" class="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-300 text-3xl mx-auto mb-4">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h3 id="modal-title" class="text-2xl font-bold text-white mb-2 font-jawi">ميسي برجايا!</h3>
+                <p id="modal-message" class="text-base text-cyan-100/90 mb-6 leading-relaxed font-jawi">ڤيليهن اندا تڤت سمالي، ايجين!</p>
+                <button onclick="closeModal()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-3 rounded-xl transition shadow-lg text-lg font-jawi">
+                    تروسكن ميسي
+                </button>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="mt-4 text-center text-xs text-cyan-400/60 font-jawi">
+            ڤڠاجرن سورة الفاتحة — ڤنديديقن اسلام تاهون 3 KSSR سيمقن
+        </footer>
+    </div>
+
+    <script>
+        const gameRounds = [
+            {
+                prompt: "سيستواسي 1: ممولاكن كرج سكوله دان منريما رزقي نِعْمَة",
+                cards: [
+                    { id: 'c1', text: "موريد مڠوچڤكن بَسْمَلَة سبلوم مولا منوليس.", correctZone: 1, type: 'correct', icon: 'fa-book-open', label: 'قد أ' },
+                    { id: 'c2', text: "موريد مڠوچڤكن اَلْحَمْدُلِلَّٰهِ سڤلس منداڤت نِعْمَة ماكنن.", correctZone: 1, type: 'correct', icon: 'fa-utensils', label: 'قد ب' },
+                    { id: 'c3', text: "موريد مروڠوت اڤابيلا دبيري توݢاسن اوليه ݢورو.", correctZone: 0, type: 'distractor', icon: 'fa-face-angry', label: 'قد ت' }
+                ]
+            },
+            {
+                prompt: "سيستواسي 2: منونايكن كواجڤن عبادة كڤد الله SWT",
+                cards: [
+                    { id: 'c4', text: "موريد منونايكن صلاة فرض دڠن خُشُوع.", correctZone: 2, type: 'correct', icon: 'fa-person-praying', label: 'قد أ' },
+                    { id: 'c5', text: "موريد بردعاء موهون ڤرتولوڠن هڽ كڤد الله SWT.", correctZone: 2, type: 'correct', icon: 'fa-hands-bound', label: 'قد ب' },
+                    { id: 'c6', text: "موريد سڠاج منڠݢلكن صلاة كرنا برماءين ڤرماءينن ويديو.", correctZone: 0, type: 'distractor', icon: 'fa-gamepad', label: 'قد ت' }
+                ]
+            },
+            {
+                prompt: "سيستواسي 3: منونتوت علمودان مميليه صحابة يڠ صالح",
+                cards: [
+                    { id: 'c7', text: "موريد تكون بلاجر ممباچ القرآن دمددرسة.", correctZone: 3, type: 'correct', icon: 'fa-quran', label: 'قد أ' },
+                    { id: 'c8', text: "موريد مميليه راكن يڠ باءيق اونتوق مڠولاڠ كاجي ڤلاجرن.", correctZone: 3, type: 'correct', icon: 'fa-user-group', label: 'قد ب' },
+                    { id: 'c9', text: "دوا اورڠ موريد برتڠكر دان ساليڠ مڽالاهكن ددالم كلاس.", correctZone: 0, type: 'distractor', icon: 'fa-triangle-exclamation', label: 'قد ت' }
+                ]
+            },
+            {
+                prompt: "سيستواسي 4: برشكور اتس كورنياءن كصيحتن دان كجاياءن",
+                cards: [
+                    { id: 'c10', text: "موريد برشكور كڤد الله اتس كصيحتن توبوه بادن.", correctZone: 1, type: 'correct', icon: 'fa-heart-pulse', label: 'قد أ' },
+                    { id: 'c11', text: "موريد ممباچ دعاء هارين موهون ڤتونجوق جالن يڠ لوروس.", correctZone: 3, type: 'correct', icon: 'fa-road', label: 'قد ب' },
+                    { id: 'c12', text: "موريد مڠيجق راكن يڠ تيدق سڠاج ملakukan كسيلهن.", correctZone: 0, type: 'distractor', icon: 'fa-face-laugh', label: 'قد ت' }
+                ]
+            },
+            {
+                prompt: "سيستواسي 5: كطاعةن برعبادة دان مموجي كبصارن اِلهِي",
+                cards: [
+                    { id: 'c13', text: "موريد مموجي كبصارن الله سمات مليهت چيڤتاءن عالم.", correctZone: 1, type: 'correct', icon: 'fa-earth-americas', label: 'قد أ' },
+                    { id: 'c14', text: "موريد ملزيمي ذِكْرُ الله دان مڠعابديکن ديري هڽ كڤد الله.", correctZone: 2, type: 'correct', icon: 'fa-shield-heart', label: 'قد ب' },
+                    { id: 'c15', text: "موريد منيڤو ݢورو اڤابيلا دتاڽ تـنتاڠ كرج سكوله.", correctZone: 0, type: 'distractor', icon: 'fa-user-secret', label: 'قد ت' }
+                ]
+            },
+            {
+                prompt: "سيستواسي 6: موهون ڤرليندُوڠن دان ڤتونجوق كجالن يڠ بنر",
+                cards: [
+                    { id: 'c16', text: "موريد موهون ڤرليندُوڠن الله درڤد ڤربواتن سست.", correctZone: 3, type: 'correct', icon: 'fa-compass', label: 'قد أ' },
+                    { id: 'c17', text: "موريد منديريكن صلاة سنة ضُحَى دسوراو سكوله.", correctZone: 2, type: 'correct', icon: 'fa-sun', label: 'قد ب' },
+                    { id: 'c18', text: "موريد مروسقكن هرتا بندا عوام دتامن ڤرماءينن.", correctZone: 0, type: 'distractor', icon: 'fa-hammer', label: 'قد ت' }
+                ]
+            },
+            {
+                prompt: "سيستواسي 7: مڠاݢوڠكن الله سرتا منجاݢ هوبوڠن سسام انسان",
+                cards: [
+                    { id: 'c19', text: "موريد مڠاݢوڠكن الله دڠن لفظ تحميد دان تكبير.", correctZone: 1, type: 'correct', icon: 'fa-hands-clapping', label: 'قد أ' },
+                    { id: 'c20', text: "موريد ممبنتو ݢورو ممباوا بوكو كبيليق ݢورو دڠن إخلاص.", correctZone: 3, type: 'correct', icon: 'fa-hand-holding-heart', label: 'قد ب' },
+                    { id: 'c21', text: "موريد مڠامبيل بارڠ راكن تنڤا كبنارن (منچوري).", correctZone: 0, type: 'distractor', icon: 'fa-hand', label: 'قد ت' }
+                ]
+            },
+            {
+                prompt: "سيستواسي 8: كإخلاصن دالم برأمل دان موهون رحمة اِلهِي",
+                cards: [
+                    { id: 'c22', text: "موريد إخلاص برعبادة دان براستغفار كڤد الله SWT.", correctZone: 2, type: 'correct', icon: 'fa-dove', label: 'قد أ' },
+                    { id: 'c23', text: "موريد مناده تاڠن موهون رحمة دان كبركاتن هيدوڤ.", correctZone: 3, type: 'correct', icon: 'fa-hands-bubbles', label: 'قد ب' },
+                    { id: 'c24', text: "موريد برسيقڤ سومبوڠ دان ممباڠݢ ديري دحادڤن كوان.", correctZone: 0, type: 'distractor', icon: 'fa-user-ninja', label: 'قد ت' }
+                ]
+            }
+        ];
+
+        let currentRoundIndex = 0;
+        let score = 0;
+        let correctAnswersFoundInRound = 0;
+        let useCamera = false;
+        let soundEnabled = true;
+        let activeCard = null;
+        let handsInstance = null;
+        let webcamCamera = null;
+
+        // Dwell tracking variables
+        let dwellTarget = null; 
+        const DWELL_TIME_MS = 1000;
+
+        // Audio Synthesizer
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'select') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'success') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.1);
+                    osc.frequency.setValueAtTime(783.99, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.setValueAtTime(150, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
+            } catch (e) {
+                console.log('Audio autoplay blocked or not supported');
+            }
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('audio-icon');
+            icon.className = soundEnabled ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark";
+        }
+
+        function startMission(withCam) {
+            useCamera = withCam;
+            document.getElementById('screen-welcome').classList.add('hidden');
+            document.getElementById('screen-complete').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+            document.getElementById('hud-stats').classList.remove('hidden');
+
+            currentRoundIndex = 0;
+            score = 0;
+            loadRound();
+
+            if (useCamera) {
+                initMediaPipeCamera();
+            } else {
+                document.getElementById('cam-placeholder').classList.remove('hidden');
+                document.getElementById('cam-mode-text').innerText = "مود: تيتيكوس";
+                document.getElementById('hand-status').innerText = "مود تيتيكوس";
+                document.getElementById('hand-status').className = "text-xs font-bold text-cyan-400 font-jawi";
+            }
+        }
+
+        function restartGame() {
+            document.getElementById('screen-complete').classList.add('hidden');
+            document.getElementById('screen-welcome').classList.remove('hidden');
+            document.getElementById('hud-stats').classList.add('hidden');
+            if (webcamCamera) {
+                webcamCamera.stop();
+                webcamCamera = null;
+            }
+        }
+
+        function toggleCameraMode() {
+            useCamera = !useCamera;
+            if (useCamera) {
+                document.getElementById('cam-mode-text').innerText = "مود كاميرا: اكتيف";
+                initMediaPipeCamera();
+            } else {
+                document.getElementById('cam-mode-text').innerText = "مود: تيتيكوس";
+                document.getElementById('hand-status').innerText = "مود تيتيكوس";
+                document.getElementById('hand-status').className = "text-xs font-bold text-cyan-400 font-jawi";
+                document.getElementById('cam-placeholder').classList.remove('hidden');
+                document.getElementById('virtual-cursor').classList.add('hidden');
+                if (webcamCamera) {
+                    webcamCamera.stop();
+                    webcamCamera = null;
+                }
+            }
+        }
+
+        function loadRound() {
+            correctAnswersFoundInRound = 0;
+            activeCard = null;
+            document.getElementById('active-selection-status').innerText = "ڤيليهن: تياد";
+
+            const roundData = gameRounds[currentRoundIndex];
+            document.getElementById('round-counter').textContent = `${currentRoundIndex + 1} / ${gameRounds.length}`;
+            document.getElementById('score-counter').textContent = score;
+            document.getElementById('round-badge').textContent = `ڤوسيڠن ${currentRoundIndex + 1}`;
+            document.getElementById('question-prompt').textContent = roundData.prompt;
+
+            // Shuffle cards randomly
+            const shuffledCards = [...roundData.cards].sort(() => Math.random() - 0.5);
+            
+            const tray = document.getElementById('cards-tray');
+            tray.innerHTML = '';
+
+            shuffledCards.forEach((card, idx) => {
+                const cardEl = document.createElement('div');
+                cardEl.id = `card-${card.id}`;
+                cardEl.className = `card-item bg-slate-900/90 border border-cyan-500/40 hover:border-cyan-400 rounded-xl p-4 flex flex-col justify-between cursor-pointer transition-all duration-300 transform hover:-translate-y-1 relative group`;
+                cardEl.onclick = () => selectCard(card);
+                cardEl.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-jawi px-2.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">قد ${idx + 1}</span>
+                        <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                            <i class="fa-solid ${card.icon} text-lg"></i>
+                        </div>
+                    </div>
+                    <p class="text-sm md:text-base font-bold text-slate-100 leading-snug my-2 font-jawi">${card.text}</p>
+                    <div class="text-xs text-cyan-400/80 font-jawi mt-1 flex items-center justify-between">
+                        <span>كليك اونتوق ڤيليه</span>
+                        <i class="fa-regular fa-hand-pointer"></i>
+                    </div>
+                `;
+                tray.appendChild(cardEl);
+            });
+
+            document.getElementById('instruction-text').innerText = "ڤيليه قد أمالن يڠ بتول دڠن كليك اتو ݢوناكن جاري تلونجوق!";
+        }
+
+        function selectCard(card) {
+            playSound('select');
+            activeCard = card;
+
+            document.querySelectorAll('.card-item').forEach(el => {
+                el.classList.remove('border-cyan-400', 'neon-glow-blue', 'bg-cyan-950/50');
+            });
+
+            const selectedEl = document.getElementById(`card-${card.id}`);
+            selectedEl.classList.add('border-cyan-400', 'neon-glow-blue', 'bg-cyan-950/50');
+
+            document.getElementById('active-selection-status').innerText = `ڤيليهن: قد ${card.text.substring(0, 18)}...`;
+            document.getElementById('instruction-text').innerText = `قد ديڤيليه! ستروسڽ، ڤيليه زون 1 (ڤوجين)، زون 2 (اقرار)، اتو زون 3 (دعاء).`;
+        }
+
+        function handleZoneClick(zoneNumber) {
+            if (!activeCard) {
+                showModal("سيلا ڤيليه قد دهولو", "سيلا كليك اتو ڤيليه قد أمالن سبلوم مڠهاترهڽ كزون!", "fa-triangle-exclamation");
+                return;
+            }
+
+            const card = activeCard;
+
+            if (card.correctZone === zoneNumber) {
+                playSound('success');
+                score++;
+                document.getElementById('score-counter').textContent = score;
+                correctAnswersFoundInRound++;
+
+                const zoneEl = document.getElementById(`zone-${zoneNumber}`);
+                zoneEl.classList.add('bg-green-950/80', 'border-green-400', 'neon-glow-blue');
+                setTimeout(() => {
+                    zoneEl.classList.remove('bg-green-950/80', 'border-green-400', 'neon-glow-blue');
+                }, 1000);
+
+                const cardEl = document.getElementById(`card-${card.id}`);
+                cardEl.style.opacity = '0.35';
+                cardEl.style.pointerEvents = 'none';
+
+                activeCard = null;
+                document.getElementById('active-selection-status').innerText = "ڤيليهن: تياد";
+
+                if (correctAnswersFoundInRound >= 2) {
+                    showModal("ميسي برجايا!", `تهنيئة ايجين! اندا تله مڽلسايكن ڤوسيڠن ${currentRoundIndex + 1} دڠن چمرلڠ.`, "fa-circle-check", () => {
+                        nextRound();
+                    });
+                } else {
+                    showModal("ڤيليهن تڤت!", `تهنيئة، ايجين! ايني چونتوه ڤڠاجرن سورة الفاتحة يڠ بتول. چاري سواتو لاݢي قد بتول!`, "fa-thumbs-up");
+                }
+
+            } else if (card.correctZone === 0) {
+                playSound('error');
+                showModal("اناليسيس سمولا سيستواسي", "ايني ياله تيندقن يڠ تيدق باءيق دان تيدق ڤاتوت ديچونتوهي! سيلا چاري أمالن يڠ بنر.", "fa-triangle-exclamation");
+                activeCard = null;
+                document.getElementById('active-selection-status').innerText = "ڤيليهن: تياد";
+                document.querySelectorAll('.card-item').forEach(el => {
+                    el.classList.remove('border-cyan-400', 'neon-glow-blue', 'bg-cyan-950/50');
+                });
+            } else {
+                playSound('error');
+                showModal("زون بلوم تڤت", "زون بلوم تڤت، ايجين. چوبا سمق سام اد اي ترݢولوڠ دالم زون ڤوجين، اقرار، اتو دعاء!", "fa-circle-info");
+            }
+        }
+
+        function nextRound() {
+            currentRoundIndex++;
+            if (currentRoundIndex < gameRounds.length) {
+                loadRound();
+            } else {
+                document.getElementById('screen-game').classList.add('hidden');
+                document.getElementById('hud-stats').classList.add('hidden');
+                document.getElementById('screen-complete').classList.remove('hidden');
+                document.getElementById('final-score').textContent = `${score} / ${gameRounds.length * 2}`;
+                playSound('success');
+            }
+        }
+
+        let modalCallback = null;
+        function showModal(title, message, iconClass = "fa-circle-check", callback = null) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('modal-icon').innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            document.getElementById('custom-modal').classList.remove('hidden');
+            modalCallback = callback;
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            if (modalCallback) {
+                const cb = modalCallback;
+                modalCallback = null;
+                cb();
+            }
+        }
+
+        function initMediaPipeCamera() {
+            const videoElement = document.getElementById('webcam');
+            const canvasElement = document.getElementById('output_canvas');
+            const canvasCtx = canvasElement.getContext('2d');
+            const cursorEl = document.getElementById('virtual-cursor');
+
+            document.getElementById('cam-placeholder').classList.add('hidden');
+            cursorEl.classList.remove('hidden');
+
+            handsInstance = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            handsInstance.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
+            });
+
+            handsInstance.onResults((results) => {
+                if (videoElement.videoWidth && videoElement.videoHeight) {
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
+                }
+
+                canvasCtx.save();
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    document.getElementById('hand-status').innerText = "تاڠن دقديسقن";
+                    document.getElementById('hand-status').className = "text-xs font-bold text-green-400 font-jawi";
+
+                    const landmarks = results.multiHandLandmarks[0];
+                    const indexTip = landmarks[8];
+                    
+                    const screenX = (1 - indexTip.x) * window.innerWidth;
+                    const screenY = indexTip.y * window.innerHeight;
+
+                    cursorEl.style.left = `${screenX}px`;
+                    cursorEl.style.top = `${screenY}px`;
+
+                    checkDwellIntersection(screenX, screenY);
+
+                } else {
+                    document.getElementById('hand-status').innerText = "تاڠن هيلڠ";
+                    document.getElementById('hand-status').className = "text-xs font-bold text-yellow-400 font-jawi";
+                    cursorEl.classList.add('hidden');
+                }
+                canvasCtx.restore();
+            });
+
+            webcamCamera = new Camera(videoElement, {
+                onFrame: async () => {
+                    if (useCamera) {
+                        await handsInstance.send({ image: videoElement });
+                    }
+                },
+                width: 640,
+                height: 480
+            });
+            webcamCamera.start().catch(err => {
+                console.error("Camera access error:", err);
+                showModal("رالط كاميرا", "كاميرا تيدق تسديا اتو كبنارن دتولق. سيلا ݢوناكن مود تيتيكوس.", "fa-triangle-exclamation");
+                toggleCameraMode();
+            });
+        }
+
+        function checkDwellIntersection(x, y) {
+            const now = Date.now();
+            const element = document.elementFromPoint(x, y);
+
+            if (!element) return;
+
+            const cardBox = element.closest('.card-item');
+            const zoneBox = element.closest('.zone-box');
+
+            let currentTargetKey = null;
+            let targetObj = null;
+
+            if (cardBox) {
+                const cardId = cardBox.id.replace('card-', '');
+                const roundData = gameRounds[currentRoundIndex];
+                targetObj = roundData.cards.find(c => c.id === cardId);
+                currentTargetKey = `card-${cardId}`;
+            } else if (zoneBox) {
+                if (zoneBox.id === 'zone-1') targetObj = 1;
+                if (zoneBox.id === 'zone-2') targetObj = 2;
+                if (zoneBox.id === 'zone-3') targetObj = 3;
+                currentTargetKey = `zone-${targetObj}`;
+            }
+
+            const badgeEl = document.getElementById('dwell-timer-badge');
+
+            if (currentTargetKey) {
+                if (dwellTarget && dwellTarget.key === currentTargetKey) {
+                    const elapsed = now - dwellTarget.startTime;
+                    const progress = Math.min(100, (elapsed / DWELL_TIME_MS) * 100);
+                    badgeEl.classList.remove('hidden');
+                    badgeEl.innerText = `ممليه: ${Math.round(progress)}%`;
+
+                    if (elapsed >= DWELL_TIME_MS) {
+                        badgeEl.classList.add('hidden');
+                        dwellTarget = null;
+                        if (cardBox && targetObj) {
+                            selectCard(targetObj);
+                        } else if (zoneBox && targetObj) {
+                            handleZoneClick(targetObj);
+                        }
+                    }
+                } else {
+                    dwellTarget = { key: currentTargetKey, startTime: now };
+                    badgeEl.classList.remove('hidden');
+                    badgeEl.innerText = `ممليه: 0%`;
+                }
+            } else {
+                dwellTarget = null;
+                badgeEl.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
